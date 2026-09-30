@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Santa Model Test</title>
+
+<style>
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#55aaff;
+}
+
+#info{
+    position:fixed;
+    top:15px;
+    left:15px;
+    z-index:100;
+    padding:14px 18px;
+    background:rgba(0,0,0,.85);
+    color:white;
+    font-family:Arial,sans-serif;
+    font-size:16px;
+    border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="info">🎅 Loading Santa...</div>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+
+<script>
+
+const scene = new THREE.Scene();
+
+scene.background =
+    new THREE.Color(0x55aaff);
+
+
+// CAMERA
+
+const camera =
+    new THREE.PerspectiveCamera(
+        50,
+        window.innerWidth /
+        window.innerHeight,
+        0.001,
+        1000000
+    );
+
+camera.position.set(
+    0,
+    2,
+    15
+);
+
+
+// RENDERER
+
+const renderer =
+    new THREE.WebGLRenderer({
+        antialias:true
+    });
+
+renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+);
+
+renderer.setPixelRatio(
+    Math.min(
+        window.devicePixelRatio,
+        2
+    )
+);
+
+renderer.outputEncoding =
+    THREE.sRGBEncoding;
+
+document.body.appendChild(
+    renderer.domElement
+);
+
+
+// LIGHTS
+
+scene.add(
+    new THREE.AmbientLight(
+        0xffffff,
+        10
+    )
+);
+
+const light1 =
+    new THREE.DirectionalLight(
+        0xffffff,
+        10
+    );
+
+light1.position.set(
+    10,
+    20,
+    20
+);
+
+scene.add(light1);
+
+const light2 =
+    new THREE.DirectionalLight(
+        0xffffff,
+        10
+    );
+
+light2.position.set(
+    -10,
+    10,
+    10
+);
+
+scene.add(light2);
+
+
+// RED TEST CUBE
+
+const cube =
+    new THREE.Mesh(
+        new THREE.BoxGeometry(
+            2,
+            2,
+            2
+        ),
+        new THREE.MeshBasicMaterial({
+            color:0xff0000
+        })
+    );
+
+cube.position.x = 6;
+
+scene.add(cube);
+
+
+// LOAD GLTF
+
+const loader =
+    new THREE.GLTFLoader();
+
+loader.load(
+    "./santa.gltf",
+
+    function(gltf){
+
+        console.log(
+            "🎅 GLTF LOADED"
+        );
+
+
+        const original =
+            gltf.scene;
+
+
+        // COLLECT ALL MESHES
+
+        const meshes = [];
+
+
+        original.traverse(
+            function(object){
+
+                if(object.isMesh){
+
+                    meshes.push(object);
+
+                }
+
+            }
+        );
+
+
+        console.log(
+            "MESH COUNT:",
+            meshes.length
+        );
+
+
+        // NEW CLEAN GROUP
+
+        const santa =
+            new THREE.Group();
+
+        scene.add(
+            santa
+        );
+
+
+        // COPY EVERY MESH
+
+        meshes.forEach(
+            function(mesh){
+
+                const clone =
+                    mesh.clone(true);
+
+
+                // Preserve world transform
+
+                mesh.updateWorldMatrix(
+                    true,
+                    false
+                );
+
+
+                mesh.matrixWorld.decompose(
+                    clone.position,
+                    clone.quaternion,
+                    clone.scale
+                );
+
+
+                // Simple material
+
+                clone.material =
+                    new THREE.MeshBasicMaterial({
+                        color:0xff00ff,
+                        side:THREE.DoubleSide
+                    });
+
+
+                clone.frustumCulled =
+                    false;
+
+
+                santa.add(
+                    clone
+                );
+
+            }
+        );
+
+
+        // CALCULATE CLEAN BOUNDING BOX
+
+        let box =
+            new THREE.Box3()
+                .setFromObject(santa);
+
+
+        console.log(
+            "CLEAN BOX:",
+            box
+        );
+
+
+        const size =
+            new THREE.Vector3();
+
+        box.getSize(size);
+
+
+        console.log(
+            "CLEAN SIZE:",
+            size
+        );
+
+
+        const center =
+            new THREE.Vector3();
+
+        box.getCenter(center);
+
+
+        console.log(
+            "CLEAN CENTER:",
+            center
+        );
+
+
+        // CENTER ALL GEOMETRY
+
+        santa.position.x =
+            -center.x;
+
+        santa.position.y =
+            -center.y;
+
+        santa.position.z =
+            -center.z;
+
+
+        // SCALE
+
+        const biggest =
+            Math.max(
+                size.x,
+                size.y,
+                size.z
+            );
+
+
+        let scale =
+            5 / biggest;
+
+
+        if(
+            !isFinite(scale) ||
+            scale <= 0
+        ){
+
+            scale = 1;
+
+        }
+
+
+        santa.scale.set(
+            scale,
+            scale,
+            scale
+        );
+
+
+        // FACE CAMERA
+
+        santa.rotation.y =
+            Math.PI;
+
+
+        // FINAL POSITION
+
+        santa.position.y =
+            -2;
+
+
+        document.getElementById(
+            "info"
+        ).textContent =
+            "🎅 Santa geometry: " +
+            meshes.length +
+            " meshes";
+
+
+        console.log(
+            "🎅 CLEAN SANTA CREATED"
+        );
+
+    },
+
+    undefined,
+
+    function(error){
+
+        console.error(
+            "SANTA ERROR:",
+            error
+        );
+
+        document.getElementById(
+            "info"
+        ).textContent =
+            "❌ Santa failed";
+
+    }
+);
+
+
+// ANIMATION
+
+function animate(){
+
+    requestAnimationFrame(
+        animate
+    );
+
+
+    cube.rotation.x +=
+        0.01;
+
+    cube.rotation.y +=
+        0.01;
+
+
+    renderer.render(
+        scene,
+        camera
+    );
+
+}
+
+animate();
+
+
+// RESIZE
+
+window.addEventListener(
+    "resize",
+    function(){
+
+        camera.aspect =
+            window.innerWidth /
+            window.innerHeight;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+        );
+
+    }
+);
+
+</script>
+
+</body>
+</html>
